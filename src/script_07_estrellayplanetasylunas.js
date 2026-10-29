@@ -1,20 +1,106 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
+import { FlyControls } from "three/examples/jsm/controls/FlyControls";
 
 let scene, renderer;
 let camera;
 let info;
-let grid;
 let estrella,
   Planetas = [],
   Lunas = [];
 let t0 = 0;
 let accglobal = 0.001;
 let timestamp;
+let camcontrols;
 
 const factor_escala = 1.2;
 
+let objetivo = null;
+let posObjetivo = new THREE.Vector3();
+let camaraInicial = null;
+let targetInicial = null;
+
+let flyControls;
+let modoNave = false;
+const reloj = new THREE.Clock();
+
+function crearSelector() {
+  camaraInicial = camera.position.clone();
+  targetInicial = camcontrols.target.clone();
+
+  const cuerpos = [
+    { nombre: "Sol",                 obj: estrella },
+    { nombre: "Gemelo Brasa",        obj: Lunas[0] },
+    { nombre: "Gemelo Ceniza",       obj: Lunas[1] },
+    { nombre: "Lumbre",              obj: Planetas[1] },
+    { nombre: "Rocaterra",           obj: Lunas[2] },
+    { nombre: "Hondonada Frágil",    obj: Planetas[2] },
+    { nombre: "Farol de Hondonada",  obj: Lunas[3] },
+    { nombre: "Abismo del Gigante",  obj: Planetas[3] },
+    { nombre: "Nave Espacial",       nave: true },
+  ];
+
+  const select = document.createElement("select");
+  select.style.cssText =
+    "position:absolute;top:10px;left:10px;z-index:10;padding:6px 10px;font-size:14px;";
+  cuerpos.forEach((c, i) => select.add(new Option(c.nombre, i)));
+
+  select.addEventListener("change", () => {
+
+    let cuerpo = cuerpos[select.value]
+
+    if (cuerpo.nave) {
+      activarNave();
+    } else {
+      desactivarNave();
+      enfocar(cuerpo.obj);
+    }
+
+  });
+
+  document.body.appendChild(select);
+}
+
+function enfocar(obj) {
+  if (obj === estrella) {
+    // Vista general original
+    objetivo = null;
+    camcontrols.target.copy(targetInicial);
+    camera.position.copy(camaraInicial);
+    camcontrols.minDistance = 0;
+  } else {
+    objetivo = obj;
+    const radio = obj.geometry.parameters.radius;
+    obj.getWorldPosition(posObjetivo);
+    camcontrols.target.copy(posObjetivo);
+    // Cámara cerca del cuerpo, proporcional a su tamaño
+    camera.position
+      .copy(posObjetivo)
+      .add(new THREE.Vector3(0, radio * 1.5, radio * 4));
+    camcontrols.minDistance = radio * 1.5; // evita meter la cámara dentro del cuerpo
+  }
+  camcontrols.update();
+}
+
+function activarNave() {
+  if (modoNave) return;
+  camera.lookAt(camcontrols.target); 
+  objetivo = null; 
+  camcontrols.enabled = false;
+  flyControls.enabled = true;
+  modoNave = true;
+}
+
+function desactivarNave() {
+  if (!modoNave) return;
+  modoNave = false;
+  flyControls.enabled = false;
+  camcontrols.enabled = true;
+  camera.up.set(0, 1, 0); 
+}
+
 init();
+crearSelector();
 animationLoop();
 
 function init() {
@@ -41,7 +127,6 @@ function init() {
   );
 
   camera.position.set(0, 300, 300);
-  camera.lookAt(0, 0, 0);
 
   renderer = new THREE.WebGLRenderer();
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -52,32 +137,44 @@ function init() {
 
   document.body.appendChild(renderer.domElement);
 
-  let camcontrols = new OrbitControls(camera, renderer.domElement);
+  camcontrols = new OrbitControls(camera, renderer.domElement);
+  camcontrols.target.set(0, 0, 0);
+  camcontrols.update();
 
-  //Rejilla de referencia indicando tamaño y divisiones
-  grid = new THREE.GridHelper(20, 40);
-  //Mostrarla en vertical
-  //grid.geometry.rotateX(Math.PI / 2);
-  //grid.position.set(0, 0, 0.05);
-  scene.add(grid);
+  flyControls = new FlyControls(camera, renderer.domElement);
+  flyControls.movementSpeed = 30; 
+  flyControls.rollSpeed = 0.5; 
+  flyControls.dragToLook = true;
+  flyControls.autoForward = false; 
+  flyControls.enabled = false;
 
   const TIME_SCALE = 30; // 1 s real = 30 s de juego
 
-  Estrella(20, 0xffaa00);
+  const textureLoader = new THREE.TextureLoader();
+  
+  const sol = textureLoader.load("./assets/01_sol.jpg");
+  const gemelo_brasa = textureLoader.load("./assets/02_gemelo_brasa.jpg");
+  const gemelo_ceniza = textureLoader.load("./assets/03_gemelo_ceniza.jpg");
+  const lumbre = textureLoader.load("./assets/04_lumbre.png");
+  const rocaterra = textureLoader.load("./assets/05_rocaterra.jpg");
+  const hondonada_fragil = textureLoader.load("./assets/06_hondonada_fragil.png");
+  const farol_de_hondonada = textureLoader.load("./assets/07_farol_de_hondonada.jpg");
+  const abismo_del_gigante = textureLoader.load("./assets/08_abismo_del_gigante.png");
+
+  Estrella(20, 0xffaa00, sol);
 
   Planeta(0.001, 50, 0.0212 * TIME_SCALE, 0xffffff, 1, 1); // Centro de los Gemelos
   Planetas[0].material.visible = false;
+  Planeta(3.5, 80,  0.0105 * TIME_SCALE, 0x3f8f5a, 1, 1, lumbre); // Lumbre
+  Planeta(3.5, 110, 0.0065 * TIME_SCALE, 0x8a6d5a, 1, 1, hondonada_fragil); // Hondonada Frágil
+  Planeta(5,   160, 0.0037 * TIME_SCALE, 0x2e8b57, 1, 1, abismo_del_gigante); // Abismo del Gigalnte
 
-  Planeta(3.5, 80,  0.0105 * TIME_SCALE, 0x3f8f5a, 1, 1); // Lumbre
-  Planeta(3.5, 110, 0.0065 * TIME_SCALE, 0x8a6d5a, 1, 1); // Hondonada Frágil
-  Planeta(5,   160, 0.0037 * TIME_SCALE, 0x2e8b57, 1, 1); // Abismo del Gigalnte
-  Planeta(8, 200, 0.00266 * TIME_SCALE, 0x1e4d2b, 1, 1); // Espinoscuro
-  
-  Luna(Planetas[0], 3, 4,  0.052 * TIME_SCALE, 0xc2b280, 0, 0);       // Gemelo Brasa
-  Luna(Planetas[0], 3, 4,  0.052 * TIME_SCALE, 0xc2b280, 0, Math.PI); // Gemelo Ceniza
+  Luna(Planetas[0], 3, 4,  0.052 * TIME_SCALE, 0xc2b280, 0, 0, gemelo_brasa); // Gemelo Brasa
+  Luna(Planetas[0], 3, 4,  0.052 * TIME_SCALE, 0xc2b280, 0, Math.PI, gemelo_ceniza); // Gemelo Ceniza
 
-  Luna(Planetas[1], 2, 10, 0.070 * TIME_SCALE, 0x9e9e9e, 0);   // Rocaterra
-  Luna(Planetas[2], 1, 9, 0.06 * TIME_SCALE, 0x8b4a2b, 0); // Farol de Hondonada
+  Luna(Planetas[1], 2, 10, 0.070 * TIME_SCALE, 0x9e9e9e, 0, 0, rocaterra); // Rocaterra
+  Luna(Planetas[2], 1, 9, 0.06 * TIME_SCALE, 0x8b4a2b, 0, 0, farol_de_hondonada); // Farol de Hondonada
+
 
   crearFuenteDeLuz(Lunas[3], {
     color: 0xffaa00,
@@ -93,9 +190,12 @@ function init() {
   t0 = Date.now();
 }
 
-function Estrella(rad, col) {
+function Estrella(rad, col, texture) {
   let geometry = new THREE.SphereGeometry(rad, 50, 50);
-  let material = new THREE.MeshBasicMaterial({ color: col });
+  let material = new THREE.MeshBasicMaterial({
+    color: texture ? 0xffffff : col,
+    map: texture,
+  });
   estrella = new THREE.Mesh(geometry, material);
 
   crearFuenteDeLuz(estrella, {
@@ -106,9 +206,12 @@ function Estrella(rad, col) {
   scene.add(estrella);
 }
 
-function Planeta(radio, dist, vel, col, f1, f2) {
+function Planeta(radio, dist, vel, col, f1, f2, texture) {
   let geom = new THREE.SphereBufferGeometry(radio * factor_escala, 50, 50);
-  let mat = new THREE.MeshPhongMaterial({ color: col });
+  let mat = new THREE.MeshPhongMaterial({
+    color: texture ? 0xffffff : col,
+    map: texture,
+  });
   let planeta = new THREE.Mesh(geom, mat);
 
   planeta.castShadow = true;
@@ -139,12 +242,15 @@ function Planeta(radio, dist, vel, col, f1, f2) {
   scene.add(orbita);
 }
 
-function Luna(planeta, radio, dist, vel, col, angle, fase = 0) {
+function Luna(planeta, radio, dist, vel, col, angle, fase = 0, texture) {
   var pivote = new THREE.Object3D();
   pivote.rotation.x = angle; //si no nulo, rotación suera de plano
   planeta.add(pivote);
   var geom = new THREE.SphereBufferGeometry(radio, 30, 30);
-  var mat = new THREE.MeshPhongMaterial({ color: col });
+  var mat = new THREE.MeshPhongMaterial({
+    color: texture ? 0xffffff : col,
+    map: texture,
+  });
   var luna = new THREE.Mesh(geom, mat);
 
   luna.castShadow = true;
@@ -184,7 +290,7 @@ function crearFuenteDeLuz(cuerpo, {
       mat.emissive.set(color);
       mat.emissiveIntensity = 1;
     } else {
-      mat.color.set(color);
+      mat.color.set(mat.map ? 0xffffff : color);
     }
   }
 
@@ -195,6 +301,7 @@ function crearFuenteDeLuz(cuerpo, {
 //Bucle de animación
 function animationLoop() {
   timestamp = (Date.now() - t0) * accglobal;
+  const delta = reloj.getDelta();
 
   requestAnimationFrame(animationLoop);
 
@@ -216,6 +323,19 @@ function animationLoop() {
       Math.cos(timestamp * object.userData.speed + object.userData.fase) * object.userData.dist;
     object.position.z =
       Math.sin(timestamp * object.userData.speed + object.userData.fase) * object.userData.dist;
+  }
+
+
+  if (modoNave) {
+    flyControls.update(delta);
+  } else {
+    if (objetivo) {
+      objetivo.getWorldPosition(posObjetivo);
+      const desplazamiento = posObjetivo.clone().sub(camcontrols.target);
+      camera.position.add(desplazamiento);
+      camcontrols.target.copy(posObjetivo);
+    }
+    camcontrols.update();
   }
 
   renderer.render(scene, camera);
