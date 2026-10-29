@@ -5,9 +5,10 @@ Este proyecto constituye de la entrega de las prácticas 6 y 7 de la asignatura 
 
 En este caso, se ha optado por imitar el sistema planetario que se explora en el videojuego "Outer Wilds".
 
+Puedes [probar esta recreación en este enlace](https://codesandbox.io/p/sandbox/ig-s6-forked-tqp8n9) a CodeSandbox.
+
 ![Sistema Solar Outer Wilds](./capturas/outer_wilds_1.jpg)
 
----
 
 ## Indice
 
@@ -441,9 +442,9 @@ Para la elaboración de esta tarea se ha utilizado herramientas de IA a modo de 
 
 Texturas del Sol, Gemelo Brasa, Gemelo Ceniza y Rocaterra: [Solar System Scope](https://www.solarsystemscope.com/textures/)
 
-Texturas de Lumbre y Hondonada Frágil [Screaming Brain Studios](https://screamingbrainstudios.itch.io/planet-texture-pack-1)
+Texturas de Lumbre y Hondonada Frágil: [Screaming Brain Studios](https://screamingbrainstudios.itch.io/planet-texture-pack-1)
 
-Textura del Abismo del Gigante: [OpenGameArt.org][https://opengameart.org/content/planetary-textures-2048x1024?page=2]
+Textura del Abismo del Gigante: [OpenGameArt.org](https://opengameart.org/content/planetary-textures-2048x1024?page=2)
 
 - Nota: La textura utilizada del pack Planetary Textures fue modificada en [Affinity](https://www.affinity.studio/es_es) para adaptarse mejor al Abismo del Gigante.
 
